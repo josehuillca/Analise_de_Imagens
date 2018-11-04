@@ -106,15 +106,17 @@ def create_image(shape, nchanels, dtype):
 
 
 def use_erode_dilate(image):
-    kernel_erode = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-    kernel_dilate = cv2.getStructuringElement(cv2.MORPH_RECT, (8, 8))
+    kernel_erode = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
+    kernel_dilate = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
     #erode = cv2.erode(image, kernel_erode)
     dilate = cv2.dilate(image, kernel_dilate)
-
     erode = cv2.erode(dilate, kernel_erode)
-    #dilate = cv2.dilate(erode, kernel_dilate)
 
-    return erode
+    kernel_erode = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    kernel_dilate = cv2.getStructuringElement(cv2.MORPH_RECT, (6, 6))
+    dilate = cv2.dilate(erode, kernel_dilate)
+
+    return dilate
 
 
 # --- AQUI SEGMENTAMOS EL CIELO --------
@@ -145,8 +147,9 @@ def get_contourns_mountain(path_base, image_base, img_sky="/segment_sky.jpg", im
     cv2.imwrite(path_base + "/result_contours_mountain.jpg", result)
     display_multiple_images([diff_total, result], ["Diferencia absoluta","Contornos da mountain"], 1, 2, False, True)
 
+
 # --------------- aqui sumamos el cielo con otra imagen
-def merge_sky(path, image, path_base, img_otsu="/segment_sea.jpg", img_temp="/img_temp_diff.jpg"):
+def merge_sky(path, image, path_base, img_otsu="/segment_sea.jpg", img_temp="/img_temp_diff.jpg", show_=True):
     img = cv2.imread(path_base + img_otsu)
     neg_img = negativo_grises(img)
     my_img = cv2.imread(path + "/" + image)#2
@@ -154,7 +157,8 @@ def merge_sky(path, image, path_base, img_otsu="/segment_sea.jpg", img_temp="/im
     #------- Calculamos la diferencia absoluta de las dos imagenes
     diff_total = cv2.absdiff(my_img, neg_img)
     cv2.imwrite(path_base + img_temp, diff_total)
-    display_multiple_images([neg_img, diff_total], ["Negative image(segment sea)", "absdiff"], 1, 2, False, True)
+    if show_:
+        display_multiple_images([neg_img, diff_total], ["Negative image(segment sea)", "absdiff"], 1, 2, False, True)
 
 
 # union de todo
@@ -169,12 +173,7 @@ def get_ship_2(path, image, path_base ):
     cv2.imwrite(path_base + "/result_ships.jpg", result)
 
 
-def get_ship(img):
-    result = use_erode_dilate(img)
-    display_multiple_images([result], ["Get ship"], 1, 1, False, True)
-
-
-def remove_noise(path_base, image="/mediacolor.jpg", limiar=60):
+def remove_noise(path_base, image="/mediacolor.jpg", limiar=60, show_=True):
     result = get_canny(path_base, image, limiar)
     countour = cv2.imread(path_base + "/result_contours_mountain.jpg")
     rest_countour_mountain = copy.copy(result)
@@ -189,8 +188,8 @@ def remove_noise(path_base, image="/mediacolor.jpg", limiar=60):
         for y in range(0, result.shape[0]):
             if countour[y, x][0] == white:
                 rest_countour_mountain[y, x] = black
-
-    display_multiple_images([result, rest_countour_mountain], ["canny", "rest contourn mountain"], 1, 2, False, True)
+    if show_:
+        display_multiple_images([result, rest_countour_mountain], ["canny", "rest contourn mountain"], 1, 2, False, True)
     return  rest_countour_mountain
 
 
@@ -250,7 +249,7 @@ def get_media_color(path_base, img_base):
     return [b, g, r]
 
 
-def change_sky_mountain(path_base, img_diff_total, bgr):
+def change_sky_mountain(path_base, img_diff_total, bgr, show_=True):
     img = cv2.imread(path_base + "/segment_sea.jpg")
     diff_total = cv2.imread(path_base + img_diff_total)
     diff_total_temp = copy.copy(diff_total)
@@ -262,7 +261,29 @@ def change_sky_mountain(path_base, img_diff_total, bgr):
                 diff_total_temp[y, x] = bgr
 
     cv2.imwrite(path_base + "/mediacolor.jpg", diff_total_temp)
-    display_multiple_images([diff_total, diff_total_temp], ["absdiff", "adbsdiff result"], 1, 2, False, True)
+    if show_:
+        display_multiple_images([diff_total, diff_total_temp], ["absdiff", "adbsdiff result"], 1, 2, False, True)
     '''cv2.imshow("diff", diff_total)
     cv2.waitKey(0)
     cv2.destroyAllWindows()'''
+
+
+def get_ship(image_path, name_my_image, image_base_path, limiar_=60):
+    merge_sky(image_path, name_my_image, image_base_path, "/segment_sea.jpg", show_=False)
+    change_sky_mountain(image_base_path, "/img_temp_diff.jpg", [0, 0, 0], show_=False)
+    result_ships = remove_noise(image_base_path, limiar=limiar_, show_=False)
+
+    original = cv2.imread(image_path + "/" + name_my_image)
+    get_ship_contourn(result_ships, original, rgb_=False)
+
+
+def get_ship_contourn(img, original, rgb_=True):
+    result = use_erode_dilate(img)
+    original_copy = original.copy()
+
+    cnts = cv2.findContours(result.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
+    cv2.drawContours(original, cnts, -1, (0, 255, 0), 3)
+    if not rgb_:
+        original_copy = rgb_to_bgr(original_copy)
+        original = rgb_to_bgr(original)
+    display_multiple_images([original_copy, original], ["original", "Get ship contour"], 1, 2, False, True)
