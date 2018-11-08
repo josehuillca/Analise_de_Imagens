@@ -18,16 +18,6 @@ if __name__ == "__main__":
     print("# images: ",len(my_images))
     my_img = image_read(image_path, my_images[3])
     show_image_properties(my_img)
-
-
-    # initial data
-    BGR_low = [43, 6, 0]
-    BGR_high = [135, 248, 115]
-    #my_img = image_read(image_base_path, "DSC_000002905.jpg")
-    #equ_rgb = show_rgb_equalized(my_img, False)
-    #plt.imsave(image_base_path + "/equ_rgb.jpg", equ_rgb)
-    '''detectC = DetectColor(image_path + "/" + my_images[2], BGR_low, BGR_high)
-    detectC.trackingColor_and_palette()'''
     
     #my_img = image_read(image_base_path, "DSC_000002905.jpg")
     '''equ_rgb = show_rgb_equalized(my_img, False)
@@ -40,8 +30,8 @@ if __name__ == "__main__":
     cv2.waitKey(0)
     cv2.destroyAllWindows()'''
     i = 6
-    get_ship(image_path, my_images[i], image_base_path, limiar_=80)
-
+    #get_ship(image_path, my_images[i], image_base_path, limiar_=80)
+    show_grayscale_equalized(my_img)
 
     print("Hello world!")
 

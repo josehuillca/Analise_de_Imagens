@@ -151,7 +151,7 @@ def get_contourns_mountain(path_base, image_base, img_sky="/segment_sky.jpg", im
 # --------------- aqui sumamos el cielo con otra imagen
 def merge_sky(path, image, path_base, img_otsu="/segment_sea.jpg", img_temp="/img_temp_diff.jpg", show_=True):
     img = cv2.imread(path_base + img_otsu)
-    neg_img = negativo_grises(img)
+    neg_img = img#negativo_grises(img)
     my_img = cv2.imread(path + "/" + image)#2
 
     #------- Calculamos la diferencia absoluta de las dos imagenes
@@ -268,22 +268,38 @@ def change_sky_mountain(path_base, img_diff_total, bgr, show_=True):
     cv2.destroyAllWindows()'''
 
 
-def get_ship(image_path, name_my_image, image_base_path, limiar_=60):
+def draw_box_min_area(img, contour, thickness, color):
+    rect = cv2.minAreaRect(contour)
+    box = cv2.boxPoints(rect)
+    box = np.int0(box)
+    cv2.drawContours(img, [box], 0, color, thickness)
+
+
+def get_ship(image_path, name_my_image, image_base_path, limiar_=60, see_box_area=False):
     merge_sky(image_path, name_my_image, image_base_path, "/segment_sea.jpg", show_=False)
     change_sky_mountain(image_base_path, "/img_temp_diff.jpg", [0, 0, 0], show_=False)
     result_ships = remove_noise(image_base_path, limiar=limiar_, show_=False)
 
     original = cv2.imread(image_path + "/" + name_my_image)
-    get_ship_contourn(result_ships, original, rgb_=False)
+    cnts = get_ship_contourn(result_ships, original, rgb_=False)
+    if see_box_area:
+        original_copy = cv2.imread(image_path + "/" + name_my_image)
+        original_copy = rgb_to_bgr(original_copy)
+        for x in cnts:
+            draw_box_min_area(original_copy, x, 2, (0, 255, 0))
+        display_multiple_images([original_copy], ["Encontrar o barco"], 1, 1, False, True)
 
 
-def get_ship_contourn(img, original, rgb_=True):
+def get_ship_contourn(img, original, rgb_=True, show_erode_dilate=False):
     result = use_erode_dilate(img)
     original_copy = original.copy()
 
     cnts = cv2.findContours(result.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
     cv2.drawContours(original, cnts, -1, (0, 255, 0), 3)
+    if show_erode_dilate:
+        display_multiple_images([result], ["Using erode+dilate"], 1, 1, False, True)
     if not rgb_:
         original_copy = rgb_to_bgr(original_copy)
         original = rgb_to_bgr(original)
     display_multiple_images([original_copy, original], ["original", "Get ship contour"], 1, 2, False, True)
+    return cnts

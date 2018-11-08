@@ -145,6 +145,12 @@ def show_rgb_equalized(image, show_=True):
     return eq_image
 
 
+def show_grayscale_equalized(image):
+    grayscale_image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    eq_grayscale_image = cv2.equalizeHist(grayscale_image)
+    display_multiple_images([grayscale_image, eq_grayscale_image], ["Imagem cinza", "Imagem cinza equalizada"], 1, 2, False, True)
+    compare_histograms(grayscale_image, eq_grayscale_image, "Hist. cinza", "Hist. cinza equalizada", [0], 'm', 'k')
+
 # https://lmcaraig.com/image-histograms-histograms-equalization-and-histograms-comparison/
 def show_hsv_equalized(image, show_=True):
     r, g, b = cv2.split(image)
