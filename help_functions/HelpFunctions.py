@@ -1,4 +1,4 @@
-is_jupyter_help = True
+is_jupyter_help = False
 if is_jupyter_help:
     from help_functions.histogramas import *
     from help_functions.limiarizacao import *
@@ -113,7 +113,7 @@ def use_erode_dilate(image):
     erode = cv2.erode(dilate, kernel_erode)
 
     kernel_erode = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-    kernel_dilate = cv2.getStructuringElement(cv2.MORPH_RECT, (6, 6))
+    kernel_dilate = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
     dilate = cv2.dilate(erode, kernel_dilate)
 
     return dilate
@@ -141,7 +141,7 @@ def get_contourns_mountain(path_base, image_base, img_sky="/segment_sky.jpg", im
     diff_total = cv2.absdiff(my_img, neg_img)
     cv2.imwrite(path_base + img_temp, diff_total)
 
-    result = get_canny(path_base, img_temp, 65)  # 34
+    result = get_canny(path_base, img_temp, 44)  # 34
 
     result = use_erode_dilate(result)  # dilate, luego erode, se modifico eso
     cv2.imwrite(path_base + "/result_contours_mountain.jpg", result)
@@ -195,13 +195,14 @@ def remove_noise(path_base, image="/mediacolor.jpg", limiar=60, show_=True):
 
 def segment_sea(path_base, image='/result_contours_mountain.jpg', show_=True):
     img = cv2.imread(path_base + image)
-    limit_y = 300  # obtenido manualmente
+    limit_y = 600  # obtenido manualmente
     white = 255
     img_result = create_image(img.shape, 3, img.dtype)
 
     for x in range(0, img.shape[1], 1):
         for y in range(img.shape[0]-1, 0, -1):
             val = img[y, x][0] #como es un imagen en black-white no importa cual tomar
+
             if val==white and y<=limit_y:
                 break
             img_result[y, x] = [white, white, white]

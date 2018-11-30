@@ -209,3 +209,12 @@ def otsu(path, img, show_=False):
         plt.imshow(res, cmap='gray')
         plt.show()
     return res
+
+
+def get_limiar_otsu(path_img):
+    image = Image.open(path_img).convert("L")
+    img = np.asarray(image)
+
+    h = Hist(img)
+    threshold(h)
+    return get_optimal_threshold()

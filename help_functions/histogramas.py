@@ -1,4 +1,4 @@
-is_jupyter_hist = True
+is_jupyter_hist = False
 if is_jupyter_hist:
     from help_functions.HelpFunctions import *
 else:

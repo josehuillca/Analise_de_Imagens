@@ -39,6 +39,17 @@ def get_canny(path, image, low=71):
     return detected_edges
 
 
+def my_get_canny(image, low=71):
+    img_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    lowThreshold = low  # 66/45
+    max_lowThreshold = lowThreshold*3  # 198/135
+    kernel_size = 3
+    # Reduce noise with a kernel 3x3
+    detected_edges = cv2.blur(img_gray, (3, 3))
+    # Canny detector
+    detected_edges = cv2.Canny(detected_edges, lowThreshold, max_lowThreshold, kernel_size)
+    return detected_edges
+
 # -------------------------------------------
 def empty(x):
     pass
@@ -123,3 +134,12 @@ def auto_canny_(path, image):
     cv2.destroyAllWindows()
     #imshow(tight, cmap="gray")
     #show()
+
+
+def my_auto_canny(image):
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # Bilateral filtering has the nice property of removing noise
+    # in the image while still preserving the actual edges.
+    gray = cv2.bilateralFilter(gray, 11, 17, 17)
+    blurred = cv2.GaussianBlur(gray, (3, 3), 0)
+    return auto_canny(blurred)
