@@ -5,16 +5,23 @@ from canny import my_auto_canny, my_get_canny
 from limiarizacao import get_limiar_otsu
 import copy
 from random import randint
+from scipy.spatial import distance
 
 
-SEGMENT_SEA_BIN = '../data/base/segment_sea.jpg'  # image that stores the segmented sea(binary image)
-TEMPORAL_IMAGE_OTSU = '../data/base/temp_otsu_calculate.jpg'  # image temporal to calculate the optimal threshold
+SEGMENT_SEA_BIN = '../data/base_real/segment_sea.jpg'  # image that stores the segmented sea(binary image)
+ONLY_SEA_IMAGE = '../data/base_real/only_sea.jpg'  # image
+TEMPORAL_IMAGE_OTSU = '../data/base_real/temp_otsu_calculate.jpg'  # image temporal to calculate the optimal threshold
+PATH_SAVE_SEGMENTED_SHIPS = '../data/segmented_ships_real/'   # path to save segmented ships
 CV2_WINDOW_RESIZE_WIDTH = 1200  # resize image to show on screen with openCV
 CV2_WINDOW_RESIZE_HEIGHT = 800  # resize image to show on screen with openCV
-IMAGE_SIZE_WIDTH = 1500   # image of the beach in pixels
-IMAGE_SIZE_HEIGHT = 1000  # image of the beach in pixels
-MIN_PERIMETER_BOAT = 89   # Perimetro minimo que puede tomar un barco
-MAX_PERIMETER_BOAT = 700  # Perimetro maximo que puede tomar un barco
+IMAGE_SIZE_WIDTH = 6000         # image of the beach in pixels
+IMAGE_SIZE_HEIGHT = 4000        # image of the beach in pixels
+MIN_LEN_W_BOAT = 80             # Minimum perimeter that a boat can take
+MAX_LEN_W_BOAT = 300*4          # Minimum perimeter that a boat can take
+MIN_LEN_H_BOAT = 80             # Maximum perimeter that a boat can take
+MAX_LEN_H_BOAT = 700*2          # Maximum perimeter that a boat can take
+AXI_Y_CROP = 2190
+# minimo 65 h, ver realacion entre h y w
 
 
 def get_random_color():
@@ -22,6 +29,42 @@ def get_random_color():
     :return: a array with the color [r,g,b] or [b,g,r]
     """
     return (randint(0, 255), randint(0, 255), randint(0, 255))
+
+
+def get_min_xy_and_wh(box_points):
+    """ We use this function to crop image with point's start min_xy
+    :param box_points: list with four coordinates that represent a box
+    :return: two coordinates that represent the minimum coordinates and length of width and height respectively
+    """
+    list_x = [box_points[0][0], box_points[1][0], box_points[2][0], box_points[3][0]]
+    list_y = [box_points[0][1], box_points[1][1], box_points[2][1], box_points[3][1]]
+    min_xy = [min(list_x), min(list_y)]
+    max_xy = [max(list_x), max(list_y)]
+    len_wh = [max_xy[0]-min_xy[0], max_xy[1]-min_xy[1]]  # getting length of width and height
+    return min_xy, len_wh
+
+
+def midpoint(xy1, xy2):
+    """
+    :param xy1: first coordinate x, y
+    :param xy2: second coordinate x, y
+    :return: mid point
+    """
+    return [(xy1[0] + xy2[0])/2.0, (xy1[1] + xy2[1])/2.0]
+
+
+def get_min_length_wh(box_points):
+    """
+    :param box_points: list with four coordinates that represent a box
+    :return: distance between mid points
+    """
+    p_mid_sup = midpoint(box_points[0], box_points[1])
+    p_mid_inf = midpoint(box_points[2], box_points[3])
+    p_mid_left = midpoint(box_points[1], box_points[2])
+    p_mid_right = midpoint(box_points[0], box_points[3])
+    min_len_w = distance.euclidean(p_mid_sup, p_mid_inf)
+    min_len_h = distance.euclidean(p_mid_left, p_mid_right)
+    return min_len_w, min_len_h
 
 
 def show_image_on_screen(window_name, image):
@@ -57,8 +100,15 @@ def get_only_sea(image, show_=True):
     :param show_: bool = show result (image) on screen
     :return: image with sky and mountains in white color
     """
-    img_sea_bin = cv2.imread(SEGMENT_SEA_BIN)
-    result = cv2.bitwise_or(img_sea_bin, image) # Calculates the per-element bit-wise disjunction of two arrays
+    #img_sea_bin = cv2.imread(SEGMENT_SEA_BIN)
+    #result = cv2.bitwise_or(img_sea_bin, image)  # Calculates the per-element bit-wise disjunction of two arrays
+
+    y = AXI_Y_CROP
+    x = 0
+    w = IMAGE_SIZE_WIDTH
+    h = IMAGE_SIZE_HEIGHT - y
+    result = image[y:y+h, x:x+w]  # image crop
+
     if show_:
         window_name = "segment-sea"
         show_image_on_screen(window_name, result)
@@ -75,7 +125,7 @@ def get_edges_noise_images(image, show_=True):
     # cv2.fastNlMeansDenoising :Perform image denoising using 'Non-local Means Denoising' algorithm  with
     # several computational optimizations. Noise expected to be a gaussian white noise
     # cv2.fastNlMeansDenoisingColored(src[, dst[, h[, hColor[, templateWindowSize[, searchWindowSize]]]]])
-    no_noise_image = cv2.fastNlMeansDenoisingColored(image_copy, None, 7, 15, 7, 21)
+    no_noise_image = image_copy #cv2.fastNlMeansDenoisingColored(image_copy, None, 7, 15, 7, 21)
 
     result_canny = my_auto_canny(no_noise_image)
     if show_:
@@ -91,40 +141,63 @@ def remove_bad_contours(contours):
     """
     new_contours = []
     for cnt in contours:
-        perimeter = cv2.arcLength(cnt, True)
-        if MIN_PERIMETER_BOAT < perimeter < MAX_PERIMETER_BOAT:
+        rect = cv2.minAreaRect(cnt)
+        box = cv2.boxPoints(rect)
+        box = np.int0(box)
+        len_w, len_h = get_min_length_wh(box)
+        bool_len_w = MIN_LEN_W_BOAT < len_w < MAX_LEN_W_BOAT
+        bool_len_h = MIN_LEN_H_BOAT < len_h < MAX_LEN_H_BOAT
+        if bool_len_w and bool_len_h:
             new_contours.append(cnt)
     return new_contours
 
 
 def find_contours(image_edges, image_color, show_=True):
-    kernel_dilate = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
-    contour = cv2.dilate(image_edges, kernel_dilate)
-    contours = cv2.findContours(contour, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
+    kernel_dilate = cv2.getStructuringElement(cv2.MORPH_RECT, (21, 21))
+    # contour = cv2.morphologyEx(image_edges, cv2.MORPH_CLOSE, kernel)
+    img_edges_contour = cv2.dilate(image_edges, kernel_dilate)
+    # kernel = np.ones((5, 5), np.uint8)
+    # contour = cv2.erode(contour, kernel, iterations=1)
+    contours = cv2.findContours(img_edges_contour, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
 
+    image_color_all_cnts = copy.copy(image_color)
+    for cnt in contours:
+        cv2.drawContours(image_color_all_cnts, [cnt], -1, get_random_color(), 3)
     new_contours = remove_bad_contours(contours)
 
-    #cv2.drawContours(image_color, contours, -1, (0, 255, 0), 3)
+    image_color_new_cnts = copy.copy(image_color)
+
     # for each contour
     for cnt in new_contours:
         # get convex hull
         hull = cv2.convexHull(cnt)
-        # draw it in red color
-        cv2.drawContours(image_color, [hull], -1, get_random_color(), 2)
 
-        '''rect = cv2.minAreaRect(cnt)
-        box = cv2.boxPoints(rect)
-        box = np.int0(box)
-        cv2.drawContours(image_color, [box], 0, get_random_color(), 2)'''
+        # draw it in red color
+        cv2.drawContours(image_color_new_cnts, [hull], -1, get_random_color(), 5)
+
     if show_:
         window_name = "contour-result"
-        show_image_on_screen(window_name, image_color)
-    print("# contours: ", len(new_contours))
+        show_image_on_screen(window_name, img_edges_contour)
+    return new_contours
 
 
-def find_and_colored_contours(image_edges, image_color, show_=True):
-    cnts = cv2.findContours(image_edges.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)[-2]
-    cv2.drawContours(image_color, cnts, -1, get_random_color(), 3)
-    if show_:
-        window_name = "contours"
-        show_image_on_screen(window_name, image_color)
+def save_image_contours(image, contours, file_name):
+    name = file_name.split('.')[0] + '_crop_'
+    image_color = copy.copy(image)
+    i = 0
+    for cnt in contours:
+        rect = cv2.minAreaRect(cnt)
+        box = cv2.boxPoints(rect)
+        box = np.int0(box)
+
+        # cv2.drawContours(image_color, [box], 0, get_random_color(), 2)
+        min_xy, len_wh = get_min_xy_and_wh(box)
+        y = min_xy[1]
+        x = min_xy[0]
+        w = len_wh[0]
+        h = len_wh[1]
+        crop_img = image_color[y:y + h, x:x + w]
+        window_name = "contour-result"
+        # show_image_on_screen(window_name, crop_img)
+        cv2.imwrite(PATH_SAVE_SEGMENTED_SHIPS + name + str(i) + '.jpg', crop_img)
+        i = i + 1

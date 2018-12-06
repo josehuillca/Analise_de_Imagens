@@ -107,7 +107,7 @@ def create_image(shape, nchanels, dtype):
 
 def use_erode_dilate(image):
     kernel_erode = cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2))
-    kernel_dilate = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    kernel_dilate = cv2.getStructuringElement(cv2.MORPH_RECT, (7, 7))
     #erode = cv2.erode(image, kernel_erode)
     dilate = cv2.dilate(image, kernel_dilate)
     erode = cv2.erode(dilate, kernel_erode)
@@ -134,14 +134,14 @@ def segment_sky(image_base_path, img, show_=True, img_save_neg="negative.jpg", i
 
 def get_contourns_mountain(path_base, image_base, img_sky="/segment_sky.jpg", img_temp="/img_absdiff_contourns_mountain.jpg"):
     img = cv2.imread(path_base + img_sky)
-    neg_img = negativo_grises(img)
+    # neg_img = negativo_grises(img)
     my_img = cv2.imread(path_base + "/" + image_base)  # 2
 
     # ------- Calculamos la diferencia absoluta de las dos imagenes
-    diff_total = cv2.absdiff(my_img, neg_img)
+    diff_total = cv2.absdiff(my_img, img)
     cv2.imwrite(path_base + img_temp, diff_total)
 
-    result = get_canny(path_base, img_temp, 44)  # 34
+    result = my_get_canny(diff_total, low=100, max_=180)#get_canny(path_base, img_temp, 60)  # 34
 
     result = use_erode_dilate(result)  # dilate, luego erode, se modifico eso
     cv2.imwrite(path_base + "/result_contours_mountain.jpg", result)
@@ -195,7 +195,7 @@ def remove_noise(path_base, image="/mediacolor.jpg", limiar=60, show_=True):
 
 def segment_sea(path_base, image='/result_contours_mountain.jpg', show_=True):
     img = cv2.imread(path_base + image)
-    limit_y = 600  # obtenido manualmente
+    limit_y = 600*4  # obtenido manualmente
     white = 255
     img_result = create_image(img.shape, 3, img.dtype)
 
