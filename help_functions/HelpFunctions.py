@@ -44,6 +44,34 @@ def print_matrix(mat, fmt="g"):
             print(("{:"+str(col_maxes[i])+fmt+"}").format(y), end="   ")
         print("")
 
+def my_print(headers, matrix, title=""):
+    cols_align = []
+    cols_m = matrix.shape[1]
+    rows_m = matrix.shape[0]
+    for i in range(0, cols_m):
+        if i == 0:
+            cols_align.append("l")
+        else:
+            cols_align.append("r")
+
+    content = []
+    if headers == []:
+        headers = [chr(x) for x in range(97, 97 + cols_m)]
+    content.append(headers)
+    for i in range(0, rows_m):
+        content.append(matrix[i])
+
+    table = Texttable()
+    table.set_deco(Texttable.HEADER)
+    table.set_header_align(cols_align)
+    table.set_cols_dtype(['a']*cols_m)  # automatic
+    table.set_cols_align(cols_align)
+    table.add_rows(content)
+
+    if title != "":
+        print("**********************  " + title + "  **********************")
+    print(table.draw())
+
 
 def show_image_properties(img):
     shape = img.shape
@@ -134,14 +162,14 @@ def segment_sky(image_base_path, img, show_=True, img_save_neg="negative.jpg", i
 
 def get_contourns_mountain(path_base, image_base, img_sky="/segment_sky.jpg", img_temp="/img_absdiff_contourns_mountain.jpg"):
     img = cv2.imread(path_base + img_sky)
-    # neg_img = negativo_grises(img)
+    neg_img = cv2.bitwise_not(img)
     my_img = cv2.imread(path_base + "/" + image_base)  # 2
 
     # ------- Calculamos la diferencia absoluta de las dos imagenes
-    diff_total = cv2.absdiff(my_img, img)
+    diff_total = cv2.absdiff(my_img, neg_img)
     cv2.imwrite(path_base + img_temp, diff_total)
 
-    result = my_get_canny(diff_total, low=100, max_=180)#get_canny(path_base, img_temp, 60)  # 34
+    result = get_canny(path_base, img_temp, 40)  # 34
 
     result = use_erode_dilate(result)  # dilate, luego erode, se modifico eso
     cv2.imwrite(path_base + "/result_contours_mountain.jpg", result)
@@ -195,7 +223,7 @@ def remove_noise(path_base, image="/mediacolor.jpg", limiar=60, show_=True):
 
 def segment_sea(path_base, image='/result_contours_mountain.jpg', show_=True):
     img = cv2.imread(path_base + image)
-    limit_y = 600*4  # obtenido manualmente
+    limit_y = 2190  # obtenido manualmente
     white = 255
     img_result = create_image(img.shape, 3, img.dtype)
 

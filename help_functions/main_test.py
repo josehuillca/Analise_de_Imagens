@@ -13,7 +13,7 @@ import cv2
 
 
 if __name__ == "__main__":
-    image_path = "../data/images"
+    image_path = "../data/images/si"
     image_base_path = "../data/base_real"
     image_path_feature = "../data/"
     my_images = list_files_from_directory(image_path)
@@ -21,17 +21,27 @@ if __name__ == "__main__":
     # my_img = image_read(image_path, my_images[3])
     # show_image_properties(my_img)
 
-    i = 10
+    i = 1
     # get_ship(image_path, my_images[i], image_base_path, limiar_=80)
-
     # ------------------------ Actual ----------------------------------
-    #for i in range(0, len(my_images)):
-    img = cv2.imread(image_path+'/'+my_images[i])
-    result_sea = get_only_sea(img, False)
-    result_canny, no_noise_image = get_edges_noise_images(result_sea, False)
-    contours = find_contours(result_canny, no_noise_image, True)
-    #save_image_contours(img, contours, my_images[i])
-    #print("finished image: ", my_images[i])
+    '''for i in range(0, len(my_images)):
+        img = cv2.imread(image_path + '/' + my_images[i])
+        print("Name image:", my_images[i])
+        result_sea = get_only_sea(img, False)
+        result_canny, no_noise_image = get_edges_noise_images(result_sea, False)
+        contours = find_contours(result_canny, no_noise_image, True)
+        save_image_contours(img, contours, my_images[i])
+        print("finished image: ", my_images[i])'''
+
+
+    #img = cv2.imread(image_path + "/DSC_000025585.jpg")
+    #show_image_on_screen("title", img)
+    # list_feautures = extract_feature_of_classes(show_=False)
+    # my_print(['centroid', 'area', 'perimeter', 'aspect_ratio'], np.array(list_feautures), title="list_feautures")
+
+    img = cv2.imread(image_path + '/' + my_images[i])
+    print("name: ", my_images[i])
+    extract_features(img)
 
     # ----------------------------------------------------------
     # segment_sky(image_base_path, "/DSC_000009279.jpg")
