@@ -170,7 +170,7 @@ def find_contours(image_edges, image_color, show_=True, kernel_d=(37, 37)):
 
     image_color_all_cnts = copy.copy(image_color)
     for cnt in contours:
-        cv2.drawContours(image_color_all_cnts, [cnt], -1, get_random_color(), 3)
+        cv2.drawContours(image_color_all_cnts, [cnt], -1, get_random_color(), 12)
     new_contours = remove_bad_contours(contours)
 
     image_color_new_cnts = copy.copy(image_color)
@@ -178,10 +178,10 @@ def find_contours(image_edges, image_color, show_=True, kernel_d=(37, 37)):
     # for each contour
     for cnt in new_contours:
         # get convex hull
-        hull = cv2.convexHull(cnt)
+        #hull = cv2.convexHull(cnt)
 
         # draw it in red color
-        cv2.drawContours(image_color_new_cnts, [hull], -1, get_random_color(), 5)
+        cv2.drawContours(image_color_new_cnts, [cnt], -1, get_random_color(), 5)
 
     if show_:
         window_name = "contour-result"
@@ -251,21 +251,25 @@ def extract_feature_of_classes(show_=True):
                 rect = cv2.minAreaRect(cnt)
                 box = cv2.boxPoints(rect)
                 box = np.int0(box)
-                cv2.drawContours(img, [box], 0, LIST_CLASSES[i][1], 2)
+                cv2.drawContours(img, [box], 0, LIST_CLASSES[i][1], 5)
             show_image_on_screen("bin", img)
         list_features.append(f)
     return list_features
 
 
-def extract_features(image):
-    result_sea = get_only_sea(image, False)
-    result_canny, no_noise_image = get_edges_noise_images(result_sea, False)
-    contours = find_contours(result_canny, no_noise_image, False)
+def extract_features(image, show_=True):
+    result_sea = get_only_sea(image, True)
+    result_canny, no_noise_image = get_edges_noise_images(result_sea, True)
+    contours = find_contours(result_canny, no_noise_image, True)
     # binarizar, rellenar contorno
     img_bin = np.zeros((image.shape[0], image.shape[1]), dtype=image.dtype)
     cv2.fillPoly(img_bin, pts=contours, color=(255, 255, 255))
-
+    show_image_on_screen('bin', img_bin)
     list_images_crop = crop_image(img_bin, contours)
+    if show_:
+        l_crop = crop_image(image, contours)
+        for i in range(len(l_crop)):
+            show_image_on_screen("crop", l_crop[i])
     real_centroids = []
     for cnt in contours:
         M = cv2.moments(cnt)
@@ -276,25 +280,36 @@ def extract_features(image):
 
     list_f = []
     for j in range(len(contours)):
-        for i in range(len(LIST_CLASSES)):
-            dist_1 = distance.euclidean(real_centroids[j], REFERENCE_POINT)
-            coord_centroid_class = [LIST_CLASSES[i][0][0], LIST_CLASSES[i][0][1]]
-            dist_0 = distance.euclidean(coord_centroid_class, REFERENCE_POINT)
+        f, _ = extract_feature_crop_img(list_images_crop[j], kernel_d=(37, 37))
+        list_f.append(f)
 
-            h = list_images_crop[j].shape[0]
-            w = list_images_crop[j].shape[1]
-            x = dist_1 * 100.0 / dist_0
-            diff = 100 - x
-            if diff<0:
-                new_h = h * (-1)*(diff/100.0)
-            else:
-                new_h = h / (diff/100.0)
-            new_w = new_h / (h / w)
-            print(int(new_w), int(new_h))
-            new_crop = cv2.resize(list_images_crop[j], (int(new_w), int(new_h)))
-            #show_image_on_screen("title", new_crop)
-            f, _ = extract_feature_crop_img(list_images_crop[j], kernel_d=(27, 27))
-            list_f.append(f)
-        #print(list_f)
-        my_print(['centroid', 'area', 'perimeter', 'aspect_ratio'], np.array(list_f), title="list - feautures:" + str(j) )
-        list_f = []
+    my_print(['centroid', 'area', 'perimeter', 'aspect_ratio'], np.array(list_f), title="first-features")
+    return list_f
+
+
+def compare_features(features_classes, features):
+    list_result = []
+    for i in range(len(features)):
+        r = []
+        for j in range(len(features_classes)):
+            dist_c = distance.euclidean(features_classes[j][0], features[i][0])
+            a = abs(features_classes[j][1] - features[i][1])
+            p = abs(features_classes[j][2] - features[i][2])
+            a_r = abs(features_classes[j][3] - features[i][3])
+            r.append([dist_c, a, p, a_r])
+        list_result.append(r)
+    for i in range(len(list_result)):
+        my_print(['centroid', 'area', 'perimeter', 'aspect_ratio'], np.array(list_result[i]), title="second-features:" + str(i))
+
+
+def ge_min_feature(list_f):
+    INF = 99999999
+    list_f[3] = [INF, INF,INF, INF]
+    for i in range(len(list_f)):
+        list_f_np = np.transpose(list_f[i])
+        min_c = list_f_np[i][0]
+        min_a = list_f_np[i][1]
+        min_p = list_f_np[i][2]
+        min_ap = list_f_np[i][3]
+
+    pass

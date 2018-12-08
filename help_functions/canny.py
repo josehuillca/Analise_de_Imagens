@@ -144,6 +144,6 @@ def my_auto_canny(image):
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     # Bilateral filtering has the nice property of removing noise
     # in the image while still preserving the actual edges.
-    gray = cv2.bilateralFilter(gray, 5, 7, 7)
-    blurred = cv2.GaussianBlur(gray, (7, 7), 0)
-    return auto_canny(blurred)
+    gray = cv2.bilateralFilter(gray, 11, 17, 17)
+    # blurred = cv2.GaussianBlur(gray, (7, 7), 0)
+    return auto_canny(gray)
