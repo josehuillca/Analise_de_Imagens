@@ -25,13 +25,13 @@ MAX_LEN_H_BOAT = 1200          # Maximum perimeter that a boat can take
 AXI_Y_CROP = 2190
 # minimo 65 h, ver realacion entre h y w
 REFERENCE_POINT = [3000, 2100]  # coordinates x, y
-CENTROID_REAL_CLASS_1 = [[3558, 2343, 1], [255, 0, 0]]  # [x, y, w] , [r, g, b]
-CENTROID_REAL_CLASS_2 = [[4991, 2648, 1], [0, 255, 0]]  # [x, y, w] , [r, g, b]
-CENTROID_REAL_CLASS_3 = [[1362, 2523, 1], [0, 255, 200]]  # [x, y, w] , [r, g, b]
-CENTROID_REAL_CLASS_4 = [[1754, 3188, 1], [255, 0, 255]]  # [x, y, w] , [r, g, b]
-CENTROID_REAL_CLASS_5 = [[2294, 2316, 1], [255, 255, 0]]  # [x, y, w] , [r, g, b]
-CENTROID_REAL_CLASS_6 = [[2103, 2397, 1], [34, 32, 154]]  # [x, y, w] , [r, g, b]
-LIST_CLASSES = [CENTROID_REAL_CLASS_1, CENTROID_REAL_CLASS_2, CENTROID_REAL_CLASS_3,
+CENTROID_REAL_CLASS_1 = [255, 0, 0]  # [r, g, b]
+CENTROID_REAL_CLASS_2 = [0, 255, 0]  # [r, g, b]
+CENTROID_REAL_CLASS_3 = [0, 255, 200]  # [r, g, b]
+CENTROID_REAL_CLASS_4 = [255, 0, 255]  # [r, g, b]
+CENTROID_REAL_CLASS_5 = [255, 255, 0]  # [r, g, b]
+CENTROID_REAL_CLASS_6 = [0, 0, 255]  # [r, g, b]
+LIST_CLASSES_COR = [CENTROID_REAL_CLASS_1, CENTROID_REAL_CLASS_2, CENTROID_REAL_CLASS_3,
                     CENTROID_REAL_CLASS_4, CENTROID_REAL_CLASS_5, CENTROID_REAL_CLASS_6]
 
 
@@ -114,12 +114,6 @@ def get_only_sea(image, show_=True):
     img_sea_bin = cv2.imread(SEGMENT_SEA_BIN)
     result = cv2.bitwise_or(img_sea_bin, image)  # Calculates the per-element bit-wise disjunction of two arrays
 
-    '''y = AXI_Y_CROP
-    x = 0
-    w = IMAGE_SIZE_WIDTH
-    h = IMAGE_SIZE_HEIGHT - y
-    result = image[y:y+h, x:x+w]  # image crop'''
-
     if show_:
         window_name = "segment-sea"
         show_image_on_screen(window_name, result)
@@ -133,10 +127,7 @@ def get_edges_noise_images(image, show_=True):
     :return: Resulting image applied canny and resulting image by applying filter to remove noise
     """
     image_copy = copy.copy(image)
-    # cv2.fastNlMeansDenoising :Perform image denoising using 'Non-local Means Denoising' algorithm  with
-    # several computational optimizations. Noise expected to be a gaussian white noise
-    # cv2.fastNlMeansDenoisingColored(src[, dst[, h[, hColor[, templateWindowSize[, searchWindowSize]]]]])
-    no_noise_image = image_copy #cv2.fastNlMeansDenoisingColored(image_copy, None, 7, 15, 7, 21)
+    no_noise_image = image_copy
 
     result_canny = my_auto_canny(no_noise_image)
     if show_:
@@ -177,8 +168,6 @@ def find_contours(image_edges, image_color, show_=True, kernel_d=(37, 37)):
 
     # for each contour
     for cnt in new_contours:
-        # get convex hull
-        #hull = cv2.convexHull(cnt)
 
         # draw it in red color
         cv2.drawContours(image_color_new_cnts, [cnt], -1, get_random_color(), 5)
@@ -198,7 +187,6 @@ def crop_image(image, contours):
         box = cv2.boxPoints(rect)
         box = np.int0(box)
 
-        # cv2.drawContours(image_color, [box], 0, get_random_color(), 2)
         min_xy, len_wh = get_min_xy_and_wh(box)
         y = min_xy[1] if (min_xy[1] - 10)<0 else min_xy[1] - 10
         x = min_xy[0] if (min_xy[0] - 10)<0 else min_xy[0] - 10
@@ -229,13 +217,13 @@ def extract_feature_crop_img(img, kernel_d=(27, 27)):
 
     cnt = new_contours[0]
     M = cv2.moments(cnt)
-    cx = int(M['m10'] / M['m00'])
-    cy = int(M['m01'] / M['m00'])
-    centroid = [cx, cy]
-    area = cv2.contourArea(cnt)
-    perimeter = cv2.arcLength(cnt, True)
+    cx = int(M['m10'] / M['m00']) / img.shape[1]
+    cy = int(M['m01'] / M['m00']) / img.shape[0]
+
+    area = cv2.contourArea(cnt) / (img.shape[1]*img.shape[0])
+    perimeter = cv2.arcLength(cnt, True) / (img.shape[1]+img.shape[0])
     aspect_ratio = float(img.shape[1]) / img.shape[0]
-    return [centroid, area, perimeter, aspect_ratio], new_contours
+    return [cx, cy, area, perimeter, aspect_ratio], new_contours
 
 
 def extract_feature_of_classes(show_=True):
@@ -251,39 +239,32 @@ def extract_feature_of_classes(show_=True):
                 rect = cv2.minAreaRect(cnt)
                 box = cv2.boxPoints(rect)
                 box = np.int0(box)
-                cv2.drawContours(img, [box], 0, LIST_CLASSES[i][1], 5)
+                cv2.drawContours(img, [box], 0, LIST_CLASSES_COR[i], 5)
             show_image_on_screen("bin", img)
         list_features.append(f)
     return list_features
 
 
 def extract_features(image, show_=True):
-    result_sea = get_only_sea(image, True)
-    result_canny, no_noise_image = get_edges_noise_images(result_sea, True)
+    result_sea = get_only_sea(image, False)
+    result_canny, no_noise_image = get_edges_noise_images(result_sea, False)
     contours = find_contours(result_canny, no_noise_image, True)
     # binarizar, rellenar contorno
     img_bin = np.zeros((image.shape[0], image.shape[1]), dtype=image.dtype)
     cv2.fillPoly(img_bin, pts=contours, color=(255, 255, 255))
-    show_image_on_screen('bin', img_bin)
+
     list_images_crop = crop_image(img_bin, contours)
     if show_:
         l_crop = crop_image(image, contours)
         for i in range(len(l_crop)):
             show_image_on_screen("crop", l_crop[i])
-    real_centroids = []
-    for cnt in contours:
-        M = cv2.moments(cnt)
-        cx = int(M['m10'] / M['m00'])
-        cy = int(M['m01'] / M['m00'])
-        centroid = [cx, cy]
-        real_centroids.append(centroid)
 
     list_f = []
     for j in range(len(contours)):
-        f, _ = extract_feature_crop_img(list_images_crop[j], kernel_d=(37, 37))
+        f, _ = extract_feature_crop_img(list_images_crop[j], kernel_d=(27, 27))
         list_f.append(f)
 
-    my_print(['centroid', 'area', 'perimeter', 'aspect_ratio'], np.array(list_f), title="first-features")
+    my_print(['cx', 'cy', 'area', 'perimeter', 'aspect_ratio'], np.array(list_f), title="first-features")
     return list_f
 
 
@@ -292,24 +273,9 @@ def compare_features(features_classes, features):
     for i in range(len(features)):
         r = []
         for j in range(len(features_classes)):
-            dist_c = distance.euclidean(features_classes[j][0], features[i][0])
-            a = abs(features_classes[j][1] - features[i][1])
-            p = abs(features_classes[j][2] - features[i][2])
-            a_r = abs(features_classes[j][3] - features[i][3])
-            r.append([dist_c, a, p, a_r])
+            dist_c = distance.euclidean(features_classes[j], features[i])
+            r.append(dist_c)
         list_result.append(r)
+
     for i in range(len(list_result)):
-        my_print(['centroid', 'area', 'perimeter', 'aspect_ratio'], np.array(list_result[i]), title="second-features:" + str(i))
-
-
-def ge_min_feature(list_f):
-    INF = 99999999
-    list_f[3] = [INF, INF,INF, INF]
-    for i in range(len(list_f)):
-        list_f_np = np.transpose(list_f[i])
-        min_c = list_f_np[i][0]
-        min_a = list_f_np[i][1]
-        min_p = list_f_np[i][2]
-        min_ap = list_f_np[i][3]
-
-    pass
+        my_print(['tipo1', 'tipo2', 'tipo3', 'tipo4', 'tipo5', 'tipo6'], np.array(list_result), title="second-features:" + str(i))
